@@ -1,0 +1,25 @@
+#Parse blast output based on length of alignment, score, and percent identity
+cat blastresults.out  | awk '{if ($4 > 30 && $12 >=20 && $12 <= 200 && $3 != 100) print $0}'
+
+#Cluster similar regions
+overcluster2 -s 20 parsed_blastresults.txt > clusters.txt
+
+#Create a fasta file for each cluster
+bedtools getfasta
+
+#For each cluster (fasta file) run cmfinder
+perl cmfinder-0.4.1.9/bin/cmfinder04.pl -cpu 12 -c 100 -skipClustalw -minCandScoreInFinal 10 -combine -fragmentary -commaSepEmFlags x--filter-non-frag,--max-degen-per-hit,2,--max-degen-flanking-nucs,7,--degen-keep,--amaa ../$1.fasta\
+
+#Score alignments using RNAphylo, only proceed with those given a p score greater than 10
+perl cmfinder-0.4.1.9/bin/ScoreMotif.pl 
+
+#Run R-scape on alignments, only proceed with those with significant covariation 
+R-scape -s alignmentfile.sto
+
+#Ensure that the candidates you are proposing indeed significantly and strongly hit the regions they should and are unique [Note, sometmes similar regions cluster seperately based on filtering and you create similar models that hit the same regions - you don't want to propose redundant models]
+cmsearch -E 0.000001 --noali --tblout Candidateshit.out candidatestructures.cm {reference_fasta}
+
+#Ensure that none of these candidates hit any regions that are also hit by Rfam structures - also don't want to propose redundant structures in Rfam.
+cmsearch --ga --noali --tblout Rfamstructures.out Rfam14.9.cm {genome_fasta}
+
+#the final set should be uniquely and significantly hitting the regions they were derived from without any redundancy to Rfam or other models proposed. 
