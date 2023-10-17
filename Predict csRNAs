@@ -1,8 +1,11 @@
+#Run hs-blastn all versus all on all regions
+hs-blastn -outfmt 6 
+
 #Parse blast output based on length of alignment, score, and percent identity
 cat blastresults.out  | awk '{if ($4 > 30 && $12 >=20 && $12 <= 200 && $3 != 100) print $0}'
 
 #Cluster similar regions
-overcluster2 -s 20 parsed_blastresults.txt > clusters.txt
+overcluster2 parsed_blastresults.txt > clusters.txt
 
 #Create a fasta file for each cluster
 bedtools getfasta
